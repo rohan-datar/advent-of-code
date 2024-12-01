@@ -28,7 +28,6 @@ const Number = struct {
 };
 
 const digits = [_]Number{
-    .{ .word = "zero", .digit = '0' },
     .{ .word = "one", .digit = '1' },
     .{ .word = "two", .digit = '2' },
     .{ .word = "three", .digit = '3' },

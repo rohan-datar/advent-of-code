@@ -43,8 +43,6 @@ func lineVal(_ line: String) -> Int {
             }
             let wordEndIdx = line.index(idx, offsetBy: word.count - 1)
             let wordNum = line[idx...wordEndIdx]
-            print("digit: \(digit),  \(word)")
-            print("wordNum: \(wordNum)")
             if wordNum == word {
                 if firstDigit == nil {
                     firstDigit = digit

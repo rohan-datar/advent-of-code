@@ -1,7 +1,7 @@
 const std = @import("std");
 const print = std.debug.print;
 const parseInt = std.fmt.parseInt;
-const input = @embedFile("test");
+const input = @embedFile("input");
 const ArrayList = std.ArrayList;
 
 const Mul = struct {
@@ -42,8 +42,9 @@ fn getMuls(input_str: []const u8, buf: *ArrayList(Mul)) !void {
         if (enabled) {
             if (idx + 7 > input_str.len) break :outer;
             const don_t: []const u8 = input_str[idx .. idx + 7];
+            // print("don't check: {s}\n", .{don_t});
             // if we find a don't continue
-            if (std.mem.eql(u8, don_t, "don't()") {
+            if (std.mem.eql(u8, don_t, "don't()")) {
                 enabled = false;
                 idx += 7;
                 continue :outer;
@@ -51,13 +52,15 @@ fn getMuls(input_str: []const u8, buf: *ArrayList(Mul)) !void {
         } else {
             const do: []const u8 = input_str[idx .. idx + 4];
             // if we're disabled and find a do() re-enable
-            if (std.mem.eql(u8, do, "do()") {
+            if (std.mem.eql(u8, do, "do()")) {
                 enabled = true;
                 idx += 4;
-            } else {
-                idx += 1;
-                continue :outer;
             }
+        }
+
+        if (!enabled) {
+            idx += 1;
+            continue :outer;
         }
 
         // check if the next four letters are mul(

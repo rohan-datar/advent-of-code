@@ -24,6 +24,7 @@ pub fn main() !void {
     const allocator = arena.allocator();
 
     var rule_map = HashMap(u8, ArrayList(u8)).init(allocator);
+    defer rule_map.deinit();
 
     // read in the rules
     while (try in_stream.readUntilDelimiterOrEof(&buf, '\n')) |line| {
@@ -42,6 +43,9 @@ pub fn main() !void {
         const fixed = try fixUnordered(rule_map, updates, allocator);
         // print("fixed: {d}\n", .{fixed.items});
         sum += middleVal(fixed);
+
+        updates.deinit();
+        fixed.deinit();
     }
 
     print("{d}\n", .{sum});
@@ -96,6 +100,7 @@ fn contains(comptime T: type, list: ArrayList(T), val: T) bool {
 fn checkRules(rule_map: HashMap(u8, ArrayList(u8)), updates: ArrayList(u8), allocator: std.mem.Allocator) !bool {
     // print("checking: {d}", .{updates.items});
     var seen = ArrayList(u8).init(allocator);
+    defer seen.deinit();
     for (updates.items) |page_num| {
         try seen.append(page_num);
         // print("current: {d}, seen: {d}\n", .{ page_num, seen.items });

@@ -111,6 +111,11 @@ fn checkRules(rule_map: HashMap(u8, ArrayList(u8)), updates: ArrayList(u8), allo
     return true;
 }
 
+fn fixUnordered(rule_map: HashMap(u8, ArrayList(u8)), updates: *ArrayList(u8), allocator: std.mem.Allocator) !ArrayList(u8) {
+    var fixed = ArrayList(u8).init(allocator);
+    while (updates.items.len
+}
+
 fn middleVal(list: ArrayList(u8)) u8 {
     const mid = @divFloor(list.items.len, 2);
     return list.items[mid];

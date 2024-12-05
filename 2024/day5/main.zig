@@ -16,7 +16,9 @@ pub fn main() !void {
 
     var sum: u32 = 0;
 
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
+    const alloc = gpa.allocator();
+    var arena = std.heap.ArenaAllocator.init(alloc);
     defer arena.deinit();
 
     const allocator = arena.allocator();
@@ -34,10 +36,12 @@ pub fn main() !void {
         if (std.mem.eql(u8, line, "")) continue; // skip the empty demlimiter
         const updates = try parseUpdateLine(line, allocator);
         const valid = try checkRules(rule_map, updates, allocator);
-        if (!valid) continue;
+        if (valid) continue;
 
         // print("mid: {d}\n", .{middleVal(updates)});
-        sum += middleVal(updates);
+        const fixed = try fixUnordered(rule_map, updates, allocator);
+        // print("fixed: {d}\n", .{fixed.items});
+        sum += middleVal(fixed);
     }
 
     print("{d}\n", .{sum});
@@ -111,9 +115,32 @@ fn checkRules(rule_map: HashMap(u8, ArrayList(u8)), updates: ArrayList(u8), allo
     return true;
 }
 
-fn fixUnordered(rule_map: HashMap(u8, ArrayList(u8)), updates: *ArrayList(u8), allocator: std.mem.Allocator) !ArrayList(u8) {
+fn fixUnordered(rule_map: HashMap(u8, ArrayList(u8)), updates: ArrayList(u8), allocator: std.mem.Allocator) !ArrayList(u8) {
     var fixed = ArrayList(u8).init(allocator);
-    while (updates.items.len
+    updateLoop: for (updates.items) |update| {
+        // print("fixed: {d}, update: {d}\n", .{ fixed.items, update });
+        if (fixed.items.len == 0) {
+            try fixed.append(update);
+            continue;
+        }
+        const rule_list = rule_map.get(update);
+        if (rule_list) |rules| {
+            // print("rules: {d}\n", .{rules.items});
+            // iterate through the fixed list and enter the item before the first elemnent that it has to be before
+            for (fixed.items, 0..) |item, i| {
+                if (contains(u8, rules, item)) {
+                    try fixed.insert(i, update);
+                    continue :updateLoop;
+                }
+            }
+            // if we don't find any rule violations, append the element at the end
+            try fixed.append(update);
+        } else {
+            // if we don't have any rules append the update
+            try fixed.append(update);
+        }
+    }
+    return fixed;
 }
 
 fn middleVal(list: ArrayList(u8)) u8 {

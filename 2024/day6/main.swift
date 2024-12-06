@@ -95,6 +95,18 @@ enum movementDirection {
         }
     }
 
+    func turned() -> movementDirection  {
+        switch self {
+        case .up:
+            return .right
+        case .down:
+            return .left
+        case .left:
+            return .up
+        case .right:
+            return .down
+        }
+    }
     func toChar() -> Character {
         switch self {
         case .up:
@@ -126,10 +138,11 @@ func strToDirection(dirChar: Character) -> movementDirection? {
 
 
 class Map {
-    let map: [[Character]]
+    var map: [[Character]]
     var visited: [(Int, Int)]
     var currentPosition: Position
     var currentDirection: movementDirection
+    // var visitedWithDir: [(Int, Int, movementDirection)]
 
     init(map: [[Character]]) {
         var startPos = Position(x: 0, y: 0)
@@ -146,11 +159,14 @@ class Map {
         self.currentDirection = startdir
         self.currentPosition = startPos
         self.visited = []
+        visited.append((currentPosition.x, currentPosition.y))
         self.map = map
+        // self.visitedWithDir = []
     }
 
 
     func reachedEnd() -> Bool {
+        // print("checking: \(currentPosition.x), \(currentPosition.y) \(currentDirection)")
         let nextPos = currentPosition.next(currentDirection: currentDirection)
         return (nextPos.x >= map.count || nextPos.x < 0 || nextPos.y >= map[nextPos.x].count || nextPos.y < 0)
     }
@@ -161,52 +177,93 @@ class Map {
             self.currentDirection.turn()
         }
 
+        self.currentPosition.move(currentDirection: self.currentDirection)
+
 
         if (!visited.contains(where: { $0 == (currentPosition.x, currentPosition.y) })) {
             visited.append((currentPosition.x, currentPosition.y))
         }
 
-        self.currentPosition.move(currentDirection: self.currentDirection)
+        map[currentPosition.x][currentPosition.y] = "X"
+
     }
 
-    func copy() -> Map {
-        let newMap = Map(map: self.map)
-        newMap.currentDirection = self.currentDirection
-        newMap.currentPosition = self.currentPosition
-        return newMap
-    }
-
-    func willLoopWithTurn() -> Bool {
-        let startDir = self.currentDirection
-        self.currentDirection.turn()
-        let startPos = self.currentPosition
-        self.advance()
-        while ((self.currentPosition != startPos) && (self.currentDirection != startDir)) {
-            if (self.reachedEnd()) {
-                return false
-            }
-            self.advance()
+    func advanceWithoutVisit() {
+        let nextPos = currentPosition.next(currentDirection: currentDirection)
+        if (self.map[nextPos.x][nextPos.y] == "#") {
+            self.currentDirection.turn()
         }
 
-        return true
+        self.currentPosition.move(currentDirection: self.currentDirection)
     }
 }
 
-guard let chars = readChars(fromFilePath: "test") else {
+func addObstruction(chars: [[Character]], x: Int, y: Int) -> [[Character]] {
+    // if (x >= map.map.count || x < 0 || y >= map.map[x].count || y < 0) {
+    //     return nil
+    // }
+    var newChars = chars
+    newChars[x][y] = "#"
+    return newChars
+}
+
+guard let chars = readChars(fromFilePath: "input") else {
     print("couldn't read input")
     exit(1)
 }
+let size = chars.count * chars[0].count
 
-var obstructions = 0
+
 let map = Map(map: chars)
-map.advance()
-while !map.reachedEnd() {
-    let mapCopy = map.copy()
-    if (mapCopy.willLoopWithTurn()) {
-        obstructions += 1
-    }
+repeat {
     map.advance()
-}
+} while !map.reachedEnd()
+
 
 print("visited: \(map.visited.count)")
+
+var obstructions = 0
+var i = 0;
+for x in 0..<chars.count {
+    for y in 0..<chars[x].count {
+        if ((x, y) == map.visited[0]) {
+            continue
+        }
+    // print("i: \(i)")
+    let charsWithOb = addObstruction(chars: chars, x: x, y: y)
+    let newMap1 = Map(map: charsWithOb)
+    let newMap2 = Map(map: charsWithOb)
+    print("current: \(x), \(y)")
+    // if (newMap.willLoop()) {
+    //     print("found loop")
+    //     obstructions += 1
+    // }
+
+    repeat {
+        newMap1.advanceWithoutVisit()
+        if (newMap1.reachedEnd()) {
+            break
+        }
+
+        newMap2.advanceWithoutVisit()
+        if (newMap2.reachedEnd()) {
+            break
+        }
+
+        newMap2.advanceWithoutVisit()
+        if (newMap2.reachedEnd()) {
+            break
+        }
+
+        if (newMap2.currentPosition == newMap1.currentPosition) {
+            obstructions += 1
+            break
+        }
+    } while true
+
+    }
+}
+
+
+
 print("obstructions: \(obstructions)")

@@ -62,6 +62,20 @@ struct Position {
     }
 }
 
+extension Position: Equatable {
+    static func == (lhs: Position, rhs: Position) -> Bool {
+        return
+            lhs.x == rhs.x &&
+            lhs.y == rhs.y
+    }
+
+    static func != (lhs: Position, rhs: Position) -> Bool {
+        return
+            lhs.x != rhs.x ||
+            lhs.y == rhs.y
+    }
+}
+
 enum movementDirection {
     case up
     case down
@@ -81,6 +95,18 @@ enum movementDirection {
         }
     }
 
+    func toChar() -> Character {
+        switch self {
+        case .up:
+            return "^"
+        case .down:
+            return "v"
+        case .left:
+            return "<"
+        case .right:
+            return ">"
+        }
+    }
 }
 
 func strToDirection(dirChar: Character) -> movementDirection? {
@@ -97,6 +123,7 @@ func strToDirection(dirChar: Character) -> movementDirection? {
         return nil
     }
 }
+
 
 class Map {
     let map: [[Character]]
@@ -141,16 +168,45 @@ class Map {
 
         self.currentPosition.move(currentDirection: self.currentDirection)
     }
+
+    func copy() -> Map {
+        let newMap = Map(map: self.map)
+        newMap.currentDirection = self.currentDirection
+        newMap.currentPosition = self.currentPosition
+        return newMap
+    }
+
+    func willLoopWithTurn() -> Bool {
+        let startDir = self.currentDirection
+        self.currentDirection.turn()
+        let startPos = self.currentPosition
+        self.advance()
+        while ((self.currentPosition != startPos) && (self.currentDirection != startDir)) {
+            if (self.reachedEnd()) {
+                return false
+            }
+            self.advance()
+        }
+
+        return true
+    }
 }
 
-guard let chars = readChars(fromFilePath: "input") else {
+guard let chars = readChars(fromFilePath: "test") else {
     print("couldn't read input")
     exit(1)
 }
 
+var obstructions = 0
 let map = Map(map: chars)
+map.advance()
 while !map.reachedEnd() {
+    let mapCopy = map.copy()
+    if (mapCopy.willLoopWithTurn()) {
+        obstructions += 1
+    }
     map.advance()
 }
 
 print("visited: \(map.visited.count)")
+print("obstructions: \(obstructions)")

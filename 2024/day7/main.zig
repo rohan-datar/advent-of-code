@@ -3,10 +3,13 @@ const print = std.debug.print;
 const parseInt = std.fmt.parseInt;
 const ArrayList = std.ArrayList;
 const Allocator = std.mem.Allocator;
+var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
+const alloc = gpa.allocator();
+var arena = std.heap.ArenaAllocator.init(alloc);
 
 pub fn main() !void {
     // read in file
-    var input_file = try std.fs.cwd().openFile("test", .{});
+    var input_file = try std.fs.cwd().openFile("input", .{});
     defer input_file.close();
 
     var buf_reader = std.io.bufferedReader(input_file.reader());
@@ -16,9 +19,6 @@ pub fn main() !void {
 
     var sum: u64 = 0;
 
-    var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
-    const alloc = gpa.allocator();
-    var arena = std.heap.ArenaAllocator.init(alloc);
     defer arena.deinit();
 
     const allocator = arena.allocator();
@@ -26,20 +26,21 @@ pub fn main() !void {
     while (try in_stream.readUntilDelimiterOrEof(&buf, '\n')) |line| {
         var eqn = try parseEqn(line, allocator);
 
-        if (eqn.isValid()) {
+        const valid = try eqn.isValid();
+        if (valid) {
             sum += eqn.result;
         }
     }
     print("{d}\n", .{sum});
 }
 
-const Op = enum { add, mul };
+const Op = enum { add, mul, concat };
 
 const Equation = struct {
     result: u64,
     components: ArrayList(u64),
 
-    fn valid(self: *Equation, next: u64, i: u64) bool {
+    fn valid(self: *Equation, next: u64, i: u64) !bool {
         if (i == self.components.items.len) {
             return next == self.result;
         }
@@ -49,12 +50,15 @@ const Equation = struct {
                 nextVal = next + self.components.items[i];
             } else if (op.value == @intFromEnum(Op.mul)) {
                 nextVal = next * self.components.items[i];
+            } else if (op.value == @intFromEnum(Op.concat)) {
+                nextVal = try concatInts(next, self.components.items[i]);
             }
-            if (self.valid(nextVal, i + 1)) return true;
+            const is_valid = try self.valid(nextVal, i + 1);
+            if (is_valid) return true;
         }
         return false;
     }
-    fn isValid(self: *Equation) bool {
+    pub fn isValid(self: *Equation) !bool {
         return self.valid(self.components.items[0], 1);
     }
 };
@@ -79,4 +83,14 @@ fn parseEqn(line: []const u8, allocator: Allocator) !Equation {
     }
 
     return Equation{ .result = result, .components = components };
+}
+
+fn concatInts(a: u64, b: u64) !u64 {
+    const a_str: []const u8 = try std.fmt.allocPrint(arena.allocator(), "{d}", .{a});
+    const b_str: []const u8 = try std.fmt.allocPrint(arena.allocator(), "{d}", .{b});
+
+    const result = try std.mem.concat(arena.allocator(), u8, &[_][]const u8{ a_str, b_str });
+
+    const res = try parseInt(u64, result, 10);
+    return res;
 }

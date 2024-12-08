@@ -65,7 +65,7 @@ extension Position: Equatable {
     static func != (lhs: Position, rhs: Position) -> Bool {
         return
             lhs.x != rhs.x ||
-            lhs.y == rhs.y
+            lhs.y != rhs.y
     }
 }
 
@@ -88,30 +88,6 @@ enum movementDirection {
         }
     }
 
-    func turned() -> movementDirection  {
-        switch self {
-        case .up:
-            return .right
-        case .down:
-            return .left
-        case .left:
-            return .up
-        case .right:
-            return .down
-        }
-    }
-    func toChar() -> Character {
-        switch self {
-        case .up:
-            return "^"
-        case .down:
-            return "v"
-        case .left:
-            return "<"
-        case .right:
-            return ">"
-        }
-    }
 }
 
 func strToDirection(dirChar: Character) -> movementDirection? {
@@ -135,7 +111,6 @@ class Map {
     var visited: [(Int, Int)]
     var currentPosition: Position
     var currentDirection: movementDirection
-    // var visitedWithDir: [(Int, Int, movementDirection)]
 
     init(map: [[Character]]) {
         var startPos = Position(x: 0, y: 0)
@@ -154,7 +129,6 @@ class Map {
         self.visited = []
         visited.append((currentPosition.x, currentPosition.y))
         self.map = map
-        // self.visitedWithDir = []
     }
 
 
@@ -194,12 +168,57 @@ class Map {
 }
 
 func addObstruction(chars: [[Character]], x: Int, y: Int) -> [[Character]] {
-    // if (x >= map.map.count || x < 0 || y >= map.map[x].count || y < 0) {
-    //     return nil
-    // }
     var newChars = chars
     newChars[x][y] = "#"
     return newChars
+}
+
+func findLoop(chars: [[Character]]) async -> Bool{
+    let map1 = Map(map: chars)
+    let map2 = Map(map: chars)
+
+    while true {
+        map1.advanceWithoutVisit()
+        if (map1.reachedEnd()) {
+            return false
+        }
+
+        map2.advanceWithoutVisit()
+        if (map2.reachedEnd()) {
+            return false
+        }
+
+        map2.advanceWithoutVisit()
+        if (map2.reachedEnd()) {
+            return false
+        }
+
+        if ((map2.currentPosition == map1.currentPosition) && (map2.currentDirection == map1.currentDirection)) {
+            return true
+        }
+    }
+}
+
+func findObstructions(map: Map) async -> Int {
+    let obs = await withTaskGroup(of: Bool.self) { group in
+        for (x, y) in map.visited {
+            if ((x, y) == map.visited[0]) {
+                continue
+            }
+            let charsWithOb = addObstruction(chars: map.map, x: x, y: y)
+            group.addTask { await findLoop(chars: charsWithOb) }
+        }
+
+        var loops = 0
+        for await isLoop in group {
+            if isLoop {
+                loops += 1
+            }
+        }
+
+        return loops
+    }
+    return obs
 }
 
 guard let chars = readChars(fromFilePath: "input") else {
@@ -217,46 +236,7 @@ repeat {
 
 print("visited: \(map.visited.count)")
 
-var obstructions = 0
-var i = 0;
-for (x, y) in map.visited {
-        if ((x, y) == map.visited[0]) {
-            continue
-        }
-    // print("i: \(i)")
-    let charsWithOb = addObstruction(chars: chars, x: x, y: y)
-    let newMap1 = Map(map: charsWithOb)
-    let newMap2 = Map(map: charsWithOb)
-    print("current: \(x), \(y)")
-    // if (newMap.willLoop()) {
-    //     print("found loop")
-    //     obstructions += 1
-    // }
-
-    repeat {
-        newMap1.advanceWithoutVisit()
-        if (newMap1.reachedEnd()) {
-            break
-        }
-
-        newMap2.advanceWithoutVisit()
-        if (newMap2.reachedEnd()) {
-            break
-        }
-
-        newMap2.advanceWithoutVisit()
-        if (newMap2.reachedEnd()) {
-            break
-        }
-
-        if ((newMap2.currentPosition == newMap1.currentPosition) && (newMap2.currentDirection == newMap1.currentDirection)) {
-            obstructions += 1
-            break
-        }
-    } while true
-
-}
-
+let obstructions = await findObstructions(map: map)
 
 
 print("obstructions: \(obstructions)")

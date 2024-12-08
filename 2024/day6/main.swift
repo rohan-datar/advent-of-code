@@ -49,16 +49,9 @@ struct Position {
     }
 
     func next(currentDirection: movementDirection) -> Position {
-        switch currentDirection {
-        case .up:
-            return Position(x: self.x - 1, y: self.y)
-        case .down:
-            return Position(x: self.x + 1, y: self.y)
-        case .right:
-            return Position(x: x, y: self.y + 1)
-        case .left:
-            return Position(x: x, y: self.y - 1)
-        }
+        var nextPos = self
+        nextPos.move(currentDirection: currentDirection)
+        return nextPos
     }
 }
 
@@ -172,9 +165,10 @@ class Map {
     }
 
     func advance() {
-        let nextPos = currentPosition.next(currentDirection: currentDirection)
-        if (map[nextPos.x][nextPos.y] == "#") {
+        var nextPos = currentPosition.next(currentDirection: currentDirection)
+        while (map[nextPos.x][nextPos.y] == "#") {
             self.currentDirection.turn()
+            nextPos = currentPosition.next(currentDirection: currentDirection)
         }
 
         self.currentPosition.move(currentDirection: self.currentDirection)
@@ -189,9 +183,10 @@ class Map {
     }
 
     func advanceWithoutVisit() {
-        let nextPos = currentPosition.next(currentDirection: currentDirection)
-        if (self.map[nextPos.x][nextPos.y] == "#") {
+        var nextPos = currentPosition.next(currentDirection: currentDirection)
+        while (self.map[nextPos.x][nextPos.y] == "#") {
             self.currentDirection.turn()
+            nextPos = currentPosition.next(currentDirection: currentDirection)
         }
 
         self.currentPosition.move(currentDirection: self.currentDirection)
@@ -224,8 +219,7 @@ print("visited: \(map.visited.count)")
 
 var obstructions = 0
 var i = 0;
-for x in 0..<chars.count {
-    for y in 0..<chars[x].count {
+for (x, y) in map.visited {
         if ((x, y) == map.visited[0]) {
             continue
         }
@@ -255,13 +249,12 @@ for x in 0..<chars.count {
             break
         }
 
-        if (newMap2.currentPosition == newMap1.currentPosition) {
+        if ((newMap2.currentPosition == newMap1.currentPosition) && (newMap2.currentDirection == newMap1.currentDirection)) {
             obstructions += 1
             break
         }
     } while true
 
-    }
 }
 
 

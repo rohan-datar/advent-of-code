@@ -11,16 +11,13 @@ pub fn main() !void {
 
     const allocator = arena.allocator();
     const filesystem = try createFilesystem(allocator);
-    // print("{d}\n", .{filesystem.items});
-    // print("{d}\n", .{filesystem.items.len});
     defer filesystem.deinit();
     const compact = try compactFilesystem(filesystem, allocator);
-    // print("{d}\n", .{compact.items});
-    print("{d}\n", .{compact.items.len});
-    defer compact.deinit();
     const sum = calculateChecksum(compact);
-
     print("{d}\n", .{sum});
+    const compact2 = try compactFilesystemNoFrag(filesystem, allocator);
+    const sum2 = calculateChecksum(compact2);
+    print("{d}\n", .{sum2});
 }
 
 fn createFilesystem(allocator: Allocator) !ArrayList(i64) {
@@ -44,7 +41,7 @@ fn createFilesystem(allocator: Allocator) !ArrayList(i64) {
     return filesystem;
 }
 
-fn compactFilesystem(filesystem: ArrayList(i64), allocator: Allocator) !ArrayList(i64) {
+fn compactFilesystem(filesystem: ArrayList(i64), allocator: Allocator) ![]i64 {
     var compact = ArrayList(i64).init(allocator);
     var i: usize = 0;
     var j: usize = filesystem.items.len - 1;
@@ -58,12 +55,6 @@ fn compactFilesystem(filesystem: ArrayList(i64), allocator: Allocator) !ArrayLis
             i += 1;
         }
 
-        // scan backward until we find a file
-        while (filesystem.items[j] == -1) {
-            if (i >= j) break :outer;
-            j -= 1;
-        }
-
         if (i >= j) break :outer;
 
         // print("i: {d}, j: {d}\n", .{ i, j });
@@ -72,14 +63,89 @@ fn compactFilesystem(filesystem: ArrayList(i64), allocator: Allocator) !ArrayLis
         i += 1;
         j -= 1;
     }
-    print("i: {d}, j: {d}\n", .{ i, j });
+    // print("i: {d}, j: {d}\n", .{ i, j });
+
+    return compact.items;
+}
+
+const fileBlock = struct {
+    start: usize,
+    size: usize,
+};
+
+fn findAllEmpty(filesystem: []i64, allocator: Allocator) ![]fileBlock {
+    var blocks = ArrayList(fileBlock).init(allocator);
+    var i: usize = 0;
+    while (i < filesystem.len) {
+        if (filesystem[i] == -1) {
+            const start = i;
+            var size: usize = 0;
+            while (filesystem[i] == -1) {
+                i += 1;
+                size += 1;
+                if (i >= filesystem.len) break;
+            }
+
+            try blocks.append(fileBlock{ .start = start, .size = size });
+        } else {
+            i += 1;
+        }
+    }
+    return blocks.items;
+}
+
+fn findFiles(filesystem: []i64, allocator: Allocator) ![]fileBlock {
+    var blocks = ArrayList(fileBlock).init(allocator);
+    var i: usize = 0;
+    while (i < filesystem.len) {
+        if (filesystem[i] != -1) {
+            const start = i;
+            var size: usize = 0;
+            while (filesystem[i] == filesystem[start]) {
+                i += 1;
+                size += 1;
+                if (i >= filesystem.len) break;
+            }
+
+            try blocks.append(fileBlock{ .start = start, .size = size });
+        } else {
+            i += 1;
+        }
+    }
+    return blocks.items;
+}
+
+fn compactFilesystemNoFrag(filesystem: ArrayList(i64), allocator: Allocator) ![]i64 {
+    var compact = filesystem.items;
+    // print("pre: {d}\n", .{compact});
+    const files = try findFiles(compact, allocator);
+    // print("files: {any}\n", .{files});
+    var j: usize = files.len;
+    while (j > 0) {
+        j -= 1;
+        const empty = try findAllEmpty(compact, allocator);
+        for (empty) |block| {
+            if (block.start > files[j].start) continue;
+            if (files[j].size <= block.size) {
+                // move the file over
+                var i: usize = 0;
+                while (i < files[j].size) {
+                    compact[block.start + i] = compact[files[j].start + i];
+                    compact[files[j].start + i] = -1;
+                    i += 1;
+                }
+            }
+        }
+        // print("{d}\n", .{compact});
+    }
 
     return compact;
 }
 
-fn calculateChecksum(filesystem: ArrayList(i64)) u64 {
+fn calculateChecksum(filesystem: []i64) u64 {
     var sum: u64 = 0;
-    for (filesystem.items, 0..) |id, idx| {
+    for (filesystem, 0..) |id, idx| {
+        if (id == -1) continue;
         const index: u64 = @intCast(idx);
         const val: u64 = @intCast(id);
         // print("pos: {d}, id: {d}\n", .{ idx, val });

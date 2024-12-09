@@ -50,11 +50,11 @@ fn compactFilesystem(filesystem: ArrayList(i64), allocator: Allocator) !ArrayLis
     var j: usize = filesystem.items.len - 1;
     // print("{d}\n", .{filesystem.items});
     // print("{d}\n", .{filesystem.items.len});
-    while (true) {
+    outer: while (true) {
         // scan forward until we find an empty space
         while (filesystem.items[i] != -1) {
             try compact.append(filesystem.items[i]);
-            if (i >= j) break;
+            if (i >= j) break :outer;
             i += 1;
         }
 
@@ -63,7 +63,7 @@ fn compactFilesystem(filesystem: ArrayList(i64), allocator: Allocator) !ArrayLis
             j -= 1;
         }
 
-        if (i >= j) break;
+        if (i >= j) break :outer;
 
         // print("i: {d}, j: {d}\n", .{ i, j });
         // move the item at j to i and advance

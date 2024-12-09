@@ -12,11 +12,11 @@ pub fn main() !void {
     const allocator = arena.allocator();
     const filesystem = try createFilesystem(allocator);
     // print("{d}\n", .{filesystem.items});
-    print("{d}\n", .{filesystem.items.len});
+    // print("{d}\n", .{filesystem.items.len});
     defer filesystem.deinit();
     const compact = try compactFilesystem(filesystem, allocator);
     // print("{d}\n", .{compact.items});
-    // print("{d}\n", .{compact.items.len});
+    print("{d}\n", .{compact.items.len});
     defer compact.deinit();
     const sum = calculateChecksum(compact);
 
@@ -50,7 +50,7 @@ fn compactFilesystem(filesystem: ArrayList(i64), allocator: Allocator) !ArrayLis
     var j: usize = filesystem.items.len - 1;
     // print("{d}\n", .{filesystem.items});
     // print("{d}\n", .{filesystem.items.len});
-    outer: while (true) {
+    outer: while (i < j) {
         // scan forward until we find an empty space
         while (filesystem.items[i] != -1) {
             try compact.append(filesystem.items[i]);
@@ -60,6 +60,7 @@ fn compactFilesystem(filesystem: ArrayList(i64), allocator: Allocator) !ArrayLis
 
         // scan backward until we find a file
         while (filesystem.items[j] == -1) {
+            if (i >= j) break :outer;
             j -= 1;
         }
 
@@ -71,6 +72,7 @@ fn compactFilesystem(filesystem: ArrayList(i64), allocator: Allocator) !ArrayLis
         i += 1;
         j -= 1;
     }
+    print("i: {d}, j: {d}\n", .{ i, j });
 
     return compact;
 }

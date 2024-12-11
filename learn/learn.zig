@@ -184,19 +184,19 @@ test "switch expression" {
 //     _ = &index;
 // }
 
-test "out of bounds, no safety" {
-    @setRuntimeSafety(false);
-    const a = [3]u32{ 1, 2, 3 };
-    var index: u8 = 5;
-    const b = a[index];
-    print("{d}\n", .{b});
-    print("{x}\n", .{&a});
-    print("{x}\n", .{&b});
-    print("{x}\n", .{&index});
+// test "out of bounds, no safety" {
+//     @setRuntimeSafety(false);
+//     const a = [3]u32{ 1, 2, 3 };
+//     var index: u8 = 5;
+//     const b = a[index];
+//     print("{d}\n", .{b});
+//     print("{x}\n", .{&a});
+//     print("{x}\n", .{&b});
+//     print("{x}\n", .{&index});
 
-    const c = &b - &a;
-    print("{x}\n", .{c});
-}
+//     const c = &b - &a;
+//     print("{x}\n", .{c});
+// }
 
 fn asciiToUpper(x: u8) u8 {
     return switch (x) {
@@ -209,4 +209,11 @@ fn asciiToUpper(x: u8) u8 {
 test "unreachable switch" {
     try expect(asciiToUpper('a') == 'A');
     try expect(asciiToUpper('A') == 'A');
+}
+
+test "integer division" {
+    const a: u64 = 2;
+    const b: u64 = 5;
+    const c = b / a;
+    print("{d}\n", .{c});
 }

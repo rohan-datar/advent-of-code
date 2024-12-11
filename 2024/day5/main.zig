@@ -39,9 +39,7 @@ pub fn main() !void {
         const valid = try checkRules(rule_map, updates, allocator);
         if (valid) continue;
 
-        // print("mid: {d}\n", .{middleVal(updates)});
         const fixed = try fixUnordered(rule_map, updates, allocator);
-        // print("fixed: {d}\n", .{fixed.items});
         sum += middleVal(fixed);
 
         updates.deinit();
@@ -56,15 +54,12 @@ fn parseRule(rule_line: []const u8, rule_map: *HashMap(u8, ArrayList(u8)), alloc
     const key_str = it.first();
     const after_str = it.rest();
 
-    // print("key: {s}, val: {s}\n", .{ key_str, after_str });
     const key = try parseInt(u8, key_str, 10);
     const after_val = try parseInt(u8, after_str, 10);
 
     var value = rule_map.get(key);
     if (value) |*after| {
-        // print("key: {d}, rules: {d}\n", .{ key, after.items });
         try after.*.append(after_val);
-        // print("after appending rules: {d}\n", .{after.items});
         try rule_map.put(key, after.*);
     } else {
         var after_list = ArrayList(u8).init(allocator);
@@ -98,16 +93,13 @@ fn contains(comptime T: type, list: ArrayList(T), val: T) bool {
 }
 
 fn checkRules(rule_map: HashMap(u8, ArrayList(u8)), updates: ArrayList(u8), allocator: std.mem.Allocator) !bool {
-    // print("checking: {d}", .{updates.items});
     var seen = ArrayList(u8).init(allocator);
     defer seen.deinit();
     for (updates.items) |page_num| {
         try seen.append(page_num);
-        // print("current: {d}, seen: {d}\n", .{ page_num, seen.items });
         const rule_list = rule_map.get(page_num);
         // if we have rules for this page
         if (rule_list) |rules| {
-            // print("rules: {d}\n", .{rules.items});
             // check each rule to see if it was already seen.
             for (rules.items) |rule| {
                 if (contains(u8, seen, rule)) return false;
@@ -123,14 +115,12 @@ fn checkRules(rule_map: HashMap(u8, ArrayList(u8)), updates: ArrayList(u8), allo
 fn fixUnordered(rule_map: HashMap(u8, ArrayList(u8)), updates: ArrayList(u8), allocator: std.mem.Allocator) !ArrayList(u8) {
     var fixed = ArrayList(u8).init(allocator);
     updateLoop: for (updates.items) |update| {
-        // print("fixed: {d}, update: {d}\n", .{ fixed.items, update });
         if (fixed.items.len == 0) {
             try fixed.append(update);
             continue;
         }
         const rule_list = rule_map.get(update);
         if (rule_list) |rules| {
-            // print("rules: {d}\n", .{rules.items});
             // iterate through the fixed list and enter the item before the first elemnent that it has to be before
             for (fixed.items, 0..) |item, i| {
                 if (contains(u8, rules, item)) {

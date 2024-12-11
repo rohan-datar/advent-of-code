@@ -2,7 +2,8 @@ const std = @import("std");
 const print = std.debug.print;
 const parseInt = std.fmt.parseInt;
 const ArrayList = std.ArrayList;
-const NumList = ArrayList(u64);
+const HashMap = std.AutoArrayHashMap;
+const NumList = HashMap(u64, u64);
 const Allocator = std.mem.Allocator;
 const input = @embedFile("input");
 
@@ -11,17 +12,22 @@ pub fn main() !void {
     defer arena.deinit();
 
     const allocator = arena.allocator();
-    var stones = try getInitialState(allocator);
+    var stones = NumList.init(allocator);
+    try getInitialState(&stones);
     for (0..75) |_| {
         stones = try blink(stones, allocator);
-        // print("{d}\n", .{stones.items});
+        // print("{d}\n", .{stones.keys()});
     }
 
-    print("{d}\n", .{stones.items.len});
+    var sum: u64 = 0;
+    for (stones.values()) |value| {
+        sum += value;
+    }
+
+    print("{d}\n", .{sum});
 }
 
-fn getInitialState(allocator: Allocator) !NumList {
-    var stones = NumList.init(allocator);
+fn getInitialState(stones: *NumList) !void {
     var it = std.mem.splitSequence(u8, input, " ");
     while (it.peek() != null) {
         var stone_str = it.next().?;
@@ -29,34 +35,51 @@ fn getInitialState(allocator: Allocator) !NumList {
             stone_str = stone_str[0 .. stone_str.len - 1];
         }
         const stone = try parseInt(u64, stone_str, 10);
-        try stones.append(stone);
+        try stones.put(stone, 1);
     }
-
-    return stones;
 }
 
 fn blink(stones: NumList, allocator: Allocator) !NumList {
-    // deinitialize the old array once we're done with it
-    defer stones.deinit();
     var newStones = NumList.init(allocator);
-    for (stones.items) |stone| {
-        // print("stone: {d}\n", .{stone});
+    var it = stones.iterator();
+    while (it.next()) |entry| {
+        const stone = entry.key_ptr.*;
+        const count = entry.value_ptr.*;
         if (stone == 0) {
-            try newStones.append(1);
+            const val = newStones.get(1);
+            if (val) |one| {
+                try newStones.put(1, one + count);
+            } else {
+                try newStones.put(1, count);
+            }
             continue;
         }
 
         if ((countDigits(stone) % 2) == 0) {
             const newNums = try splitNum(stone, allocator);
-            // print("newNums: {d}\n", .{newNums});
-            try newStones.appendSlice(newNums);
+            const val1 = newStones.get(newNums[0]);
+            if (val1) |first| {
+                try newStones.put(newNums[0], first + count);
+            } else {
+                try newStones.put(newNums[0], count);
+            }
+            const val2 = newStones.get(newNums[1]);
+            if (val2) |second| {
+                try newStones.put(newNums[1], second + count);
+            } else {
+                try newStones.put(newNums[1], count);
+            }
             continue;
         }
 
-        try newStones.append(stone * 2024);
+        const val = newStones.get(stone * 2024);
+        if (val) |num| {
+            try newStones.put(stone * 2024, num + count);
+        } else {
+            try newStones.put(stone * 2024, count);
+        }
     }
 
-    // print("new: {d}\n", .{newStones.items});
     return newStones;
 }
 

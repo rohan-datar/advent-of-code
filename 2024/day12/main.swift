@@ -67,16 +67,32 @@ struct Position {
         return neighbors
     }
 
-    func upRight() -> (Position, Position) {
-        return (self.next(direction: Direction.up), self.next(direction: Direction.right))
-    }
-
-    func downLeft() -> (Position, Position) {
-        return (self.next(direction: Direction.down), self.next(direction: Direction.left))
+    // this is a stupid solution, but I can't think of a smarter way to do this
+    func corners() -> [(Position, Position, Position)] {
+        // return [(Position(x: (self.x - 1), y: self.y), Position(x: self.x, y: (self.y + 1)), Position(x: (self.x - 1), y: (self.y + 1))),
+        //         (Position(x: self.x, y: (self.y + 1)), Position(x: (self.x + 1), y: self.y), Position(x: (self.x + 1), y: (self.y + 1))),
+        //         (Position(x: self.x+1, y: self.y), Position(x: self.x, y: self.y-1), Position(x: self.x +1, y: self.y-1)),
+        //         (Position(x: self.x, y: self.y-1), Position(x: self.x-1, y: self.y), Position(x: self.x -1, y: self.y-1))]
+        return [(self.next(direction: Direction.up), self.next(direction: Direction.right), self.next(direction: Direction.up).next(direction: Direction.right)),
+                (self.next(direction: Direction.right), self.next(direction: Direction.down), self.next(direction: Direction.right).next(direction: Direction.down)),
+                (self.next(direction: Direction.left), self.next(direction: Direction.down), self.next(direction: Direction.left).next(direction: Direction.down)),
+                (self.next(direction: Direction.left), self.next(direction: Direction.up), self.next(direction: Direction.left).next(direction: Direction.up))]
     }
 
     func isOutOfBounds(map: [[Character]]) -> Bool {
         return (x >= map.count || x < 0 || y >= map[x].count || y < 0)
+    }
+
+    func isDifferentVal(map: [[Character]], other: Position) -> Bool {
+        if (!self.isOutOfBounds(map: map) && other.isOutOfBounds(map: map)) {
+            return true
+        }
+
+        if map[self.x][self.y] != map[other.x][other.y] {
+            return true
+        }
+
+        return false
     }
 
 }
@@ -129,7 +145,7 @@ func fillRegion(map: [[Character]],  start: Position, seen: inout [Position]) ->
 
 func getPrice(region: [Position]) -> Int {
     let area = region.count
-    var corners = 0
+    var perimeter = 0
     for plot in region {
         for dir in Direction.allCases {
             let neighbor = plot.next(direction: dir)
@@ -142,22 +158,24 @@ func getPrice(region: [Position]) -> Int {
     return area * perimeter
 }
 
-func isCorner(map: [[Character]], plot: Position) -> Bool {
-    // if at least two neighbors are out of bounds we have a corner
-    var oob = 0
-    for neighbor in plot.neighbors() {
-        if neighbor.isOutOfBounds(map: map) {
-            oob += 1
+
+func getPrice2(map: [[Character]], region: [Position]) -> Int {
+    let area = region.count
+    var perimeter = 0
+    for plot in region {
+        for (side1, side2, diagonal) in plot.corners() {
+            if (plot.isDifferentVal(map: map, other: side1) && plot.isDifferentVal(map: map, other: side2)) {
+                perimeter += 1
+            }
+            if (!plot.isDifferentVal(map: map, other: side1) && !plot.isDifferentVal(map: map, other: side2)) {
+                if (plot.isDifferentVal(map: map, other: diagonal)) {
+                    perimeter += 1
+                }
+            }
         }
     }
-    if oob >= 2 { return true }
 
-    // if two neighbors are the same but the space in between them is different, we have a corner
-
-}
-
-func getPrice2(region: [Position]) -> Int {
-    let area = region.count
+    return area * perimeter
 }
 
 
@@ -179,10 +197,13 @@ for x in 0..<chars.count {
         regions.append(region)
     }
 }
-var totalPrice = 0
+var totalPrice1 = 0
+var totalPrice2 = 0
 for region in regions {
-    totalPrice += getPrice(region: region)
+    totalPrice1 += getPrice(region: region)
+    totalPrice2 += getPrice2(map: chars, region: region)
 }
 
 
-print(totalPrice)
+print("part 1: \(totalPrice1)")
+print("part 2: \(totalPrice2)")

@@ -10,45 +10,6 @@ const Vec2 = struct {
     x: i64,
     y: i64,
 };
-const Mat2 = struct {
-    a: f64,
-    b: f64,
-    c: f64,
-    d: f64,
-
-    pub fn inverse(self: *Mat2) Mat2 {
-        const det: f64 = (self.a * self.d) - (self.b * self.c);
-        // print("det: {d}\n", .{det});
-        return Mat2{ .a = self.d / det, .b = -self.b / det, .c = -self.c / det, .d = self.a / det };
-    }
-
-    pub fn preMulitplyVec2(self: *Mat2, vec: Vec2) Vec2 {
-        const vfx = @as(f64, @floatFromInt(vec.x));
-        const vfy = @as(f64, @floatFromInt(vec.y));
-        const res_xf = (self.a * vfx) + (self.b * vfy);
-        // print("calc A: {d}\n", .{res_xf});
-        var res_x: i64 = 0;
-        if (isWholeNum(res_xf) and (res_xf > 0)) {
-            res_x = @as(i64, @intFromFloat(res_xf));
-        }
-        const res_yf = (self.c * vfx) + (self.d * vfy);
-        // print("calc B: {d}\n", .{res_yf});
-        var res_y: i64 = 0;
-        if (isWholeNum(res_yf) and (res_yf > 0)) {
-            res_y = @as(i64, @intFromFloat(res_yf));
-        }
-        return Vec2{ .x = res_x, .y = res_y };
-    }
-};
-
-fn isWholeNum(num: f64) bool {
-    var num_copy = num;
-    const int_num = @as(i64, @intFromFloat(num_copy));
-    num_copy = @as(f64, @floatFromInt(int_num));
-    const diff = num - num_copy;
-    // print("diff: {d}\n", .{diff});
-    return (diff < 0.0000001);
-}
 
 const ClawMachine = struct {
     A: Vec2,
@@ -56,24 +17,27 @@ const ClawMachine = struct {
     Prize: Vec2,
 
     pub fn cost(self: *ClawMachine) i64 {
-        var mat = Mat2{ .a = @floatFromInt(self.A.x), .b = @floatFromInt(self.B.x), .c = @floatFromInt(self.A.y), .d = @floatFromInt(self.B.y) };
-        // print("mat:\n {d} {d}\n {d} {d}\n", .{ mat.a, mat.b, mat.c, mat.d });
-        var inv = mat.inverse();
-        // print("inv:\n {d} {d}\n {d} {d}\n", .{ inv.a, inv.b, inv.c, inv.d });
-        const final = inv.preMulitplyVec2(self.Prize);
-        // print("final: A: {d}, B: {d}\n", .{ final.x, final.y });
-        const total_cost = final.x * 3 + final.y;
+        // for a system A*(x_a, y_a) + B*(x_b, y_b) = (x_p, y_p)
+        // b = ((x_p*y_a) - (y_p*x_a))/((x_b*y_a) - (y_b*x_a))
+        // and
+        // a = (x_p - (b*x_b))/x_a
+        // convert all values to floats for the calculation
 
-        const x_sol = (final.x * self.A.x) + (final.y * self.B.x);
-        const y_sol = (final.x * self.A.y) + (final.y * self.B.y);
-        if (final.x != 0) {
-            if ((x_sol != self.Prize.x) or (y_sol != self.Prize.y)) {
-                print("solutions is wrong!\n", .{});
-                print("got x: (({d}*{d} + ({d}*{d}) = {d}), wanted: {d}\n", .{ final.x, self.A.x, final.y, self.B.x, x_sol, self.Prize.x });
-                print("got y: (({d}*{d} + ({d}*{d}) = {d}), wanted: {d}\n", .{ final.x, self.A.y, final.y, self.B.y, y_sol, self.Prize.y });
-            }
+        const b_numerator = (self.Prize.x * self.A.y) - (self.Prize.y * self.A.x);
+        const b_denominator = (self.B.x * self.A.y) - (self.B.y * self.A.x);
+        // check that b is an integer
+        if (@mod(b_numerator, b_denominator) != 0) {
+            return 0;
         }
-        return total_cost;
+        const b = @divTrunc(b_numerator, b_denominator);
+
+        const a_numerator = self.Prize.x - (b * self.B.x);
+        if (@mod(a_numerator, self.A.x) != 0) {
+            return 0;
+        }
+        const a = @divTrunc(a_numerator, self.A.x);
+
+        return (a * 3) + b;
     }
 };
 
@@ -158,12 +122,18 @@ pub fn main() !void {
     }
 
     var sum: i64 = 0;
+    var sum2: i64 = 0;
     for (machines.items) |machine| {
         var mach = machine;
         // print("machine: {any}\n", .{mach});
         // print("cost: {d}\n", .{mach.cost()});
         sum += mach.cost();
+        var mach2 = machine;
+        mach2.Prize.x += 10000000000000;
+        mach2.Prize.y += 10000000000000;
+        sum2 += mach2.cost();
     }
 
-    print("{d}\n", .{sum});
+    print("p1: {d}\n", .{sum});
+    print("p2: {d}\n", .{sum2});
 }

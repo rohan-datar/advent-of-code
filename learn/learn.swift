@@ -46,3 +46,9 @@ let digits = ["0":"zero", "1":"one", "2":"two", "3":"three", "4": "four", "5": "
 for (digit, word) in digits {
     print("digit: \(digit) \(word)")
 }
+
+let mod = 13 % 10
+print(mod)
+print((10 + mod) % 10)
+
+print(5/2)

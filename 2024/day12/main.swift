@@ -69,10 +69,6 @@ struct Position {
 
     // this is a stupid solution, but I can't think of a smarter way to do this
     func corners() -> [(Position, Position, Position)] {
-        // return [(Position(x: (self.x - 1), y: self.y), Position(x: self.x, y: (self.y + 1)), Position(x: (self.x - 1), y: (self.y + 1))),
-        //         (Position(x: self.x, y: (self.y + 1)), Position(x: (self.x + 1), y: self.y), Position(x: (self.x + 1), y: (self.y + 1))),
-        //         (Position(x: self.x+1, y: self.y), Position(x: self.x, y: self.y-1), Position(x: self.x +1, y: self.y-1)),
-        //         (Position(x: self.x, y: self.y-1), Position(x: self.x-1, y: self.y), Position(x: self.x -1, y: self.y-1))]
         return [(self.next(direction: Direction.up), self.next(direction: Direction.right), self.next(direction: Direction.up).next(direction: Direction.right)),
                 (self.next(direction: Direction.right), self.next(direction: Direction.down), self.next(direction: Direction.right).next(direction: Direction.down)),
                 (self.next(direction: Direction.left), self.next(direction: Direction.down), self.next(direction: Direction.left).next(direction: Direction.down)),

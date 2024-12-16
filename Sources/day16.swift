@@ -143,7 +143,7 @@ func deerScore(map: [[Character]], start: Position, startDir: Direction, end: Po
     var queue: Heap<State> = []
     var visited: [State] = []
     var paths: [State] = []
-    var highscore = Int.max
+    var bestScore = Int.max
 
     queue.insert(State(pos: start, facing: startDir, cost: 0, prev: nil))
     while !queue.isEmpty {
@@ -151,43 +151,24 @@ func deerScore(map: [[Character]], start: Position, startDir: Direction, end: Po
             return nil
         }
 
-        if current.cost > highscore {
-            break
-        }
+        // if current.pos.y == 1 {
+        // print("pos: \(current.pos), facing: \(current.facing)")
+        // }
         if current.pos == end {
-            highscore = current.cost
-            paths.append(current)
+            if current.cost <= bestScore {
+                bestScore = current.cost
+                paths.append(current)
+            }
         }
 
-        if visited.contains(where: { $0.pos == current.pos && $0.facing == current.facing }) {
-            if  let vcost = visited.first(where: { $0.pos == current.pos && $0.facing == current.facing })?.cost {
-                if vcost < current.cost {
-                    continue
-                }
-            } else {
-                fatalError("what")
-            }
-        } else {
+        if !visited.contains(where: { $0.pos == current.pos && $0.facing == current.facing }) {
             visited.append(current)
             let fwdPos = current.next()
-            // print("fwd: \(fwdPos)")
-            // if (!fwdPos.isOutOfBounds(map: map)) { print(map[fwdPos.x][fwdPos.y]) }
-            if (!fwdPos.isOutOfBounds(map: map) && map[fwdPos.x][fwdPos.y] != "#") {
+            if (map[fwdPos.x][fwdPos.y] != "#") {
                 queue.insert(State(pos: fwdPos, facing: current.facing, cost: current.cost + 1, prev: current))
             }
-
-            let leftPos = current.pos.next(dir: current.facing.turnLeft())
-            // print("left: \(leftPos)")
-            // if (!fwdPos.isOutOfBounds(map: map)) { print(map[fwdPos.x][fwdPos.y]) }
-            if (!leftPos.isOutOfBounds(map: map) && map[leftPos.x][leftPos.y] != "#") {
-                queue.insert(State(pos: leftPos, facing: current.facing.turnLeft(), cost: current.cost + 1001, prev: current))
-            }
-
-            let rightPos = current.pos.next(dir: current.facing.turnRight())
-            // print("right: \(rightPos)")
-            if (!rightPos.isOutOfBounds(map: map) && map[rightPos.x][rightPos.y] != "#") {
-                queue.insert(State(pos: rightPos, facing: current.facing.turnRight(), cost: current.cost + 1001, prev: current))
-            }
+            queue.insert(State(pos: current.pos, facing: current.facing.turnLeft(), cost: current.cost + 1000, prev: current))
+            queue.insert(State(pos: current.pos, facing: current.facing.turnRight(), cost: current.cost + 1000, prev: current))
         }
     }
     return paths
@@ -217,11 +198,34 @@ func findEndingPosition(map: [[Character]]) -> Position? {
     return nil
 }
 
+func printPath(map: [[Character]], path: State) {
+        var node = path
+        var points: Set<Position> = []
+        while let prev = node.prev {
+            points.insert(node.pos)
+            node = prev
+        }
+        var finalMap = map
+        for x in 0..<map.count {
+            for y in 0..<map[x].count {
+                if points.contains(Position(x: x, y: y)) {
+                    finalMap[x][y] = "O"
+                } else {
+                    finalMap[x][y] = map[x][y]
+                }
+            }
+        }
+
+        for line in finalMap {
+            print(String(line))
+        }
+}
+
 @main
 class Main {
     static func main() {
         let inputURL = Bundle.module.url(
-          forResource: "test2",
+          forResource: "input",
           withExtension: "txt",
           subdirectory: "Day16")
 
@@ -251,31 +255,43 @@ class Main {
             exit(1)
         }
 
-        print("score: \(paths[0].cost)")
+        var bestScore = Int.max
+        for path in paths {
+            if path.cost <= bestScore {
+                bestScore = path.cost
+            }
+        }
+
+        print("score: \(bestScore)")
 
         var points: Set<Position> = []
         for path in paths {
+            // printPath(map: chars, path: path)
             var curr = path
+            if (path.cost != bestScore) {
+                continue
+            }
             while let prev = curr.prev {
                 points.insert(curr.pos)
+                guard let pathsToPoint = deerScore(map: chars, start: start, startDir: Direction.right, end: curr.pos) else {
+                    print("couldn't find any paths to point")
+                    exit(1)
+                }
+
+                for pointPath in pathsToPoint {
+                    if pointPath.cost == curr.cost {
+                        var pcurr = pointPath
+                        while let pprev = pcurr.prev {
+                            points.insert(pcurr.pos)
+                            pcurr = pprev
+                        }
+                    }
+                }
+                print("current: \(curr.pos)")
                 curr = prev
             }
         }
 
-        var finalMap = chars
-        for x in 0..<chars.count {
-            for y in 0..<chars[x].count {
-                if points.contains(Position(x: x, y: y)) {
-                    finalMap[x][y] = "O"
-                } else {
-                    finalMap[x][y] = chars[x][y]
-                }
-            }
-        }
-
-        for line in finalMap {
-            print(String(line))
-        }
 
         print("points: \(points.count)")
     }

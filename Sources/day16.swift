@@ -79,6 +79,10 @@ struct Position {
         nextPos.move(dir: dir)
         return nextPos
     }
+
+    func isOutOfBounds(map: [[Character]]) -> Bool {
+        return (x >= map.count || x < 0 || y >= map[x].count || y < 0)
+    }
 }
 
 extension Position: Equatable {
@@ -93,6 +97,13 @@ extension Position: Equatable {
         return
             lhs.x != rhs.x ||
             lhs.y != rhs.y
+    }
+}
+
+extension Position: Hashable {
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(x)
+        hasher.combine(y)
     }
 }
 
@@ -128,32 +139,58 @@ extension State: Comparable {
     }
 }
 
-func deerScore(map: [[Character]], start: Position, startDir: Direction, end: Position) -> Int {
+func deerScore(map: [[Character]], start: Position, startDir: Direction, end: Position) -> [State]? {
     var queue: Heap<State> = []
     var visited: [State] = []
+    var paths: [State] = []
+    var highscore = Int.max
 
     queue.insert(State(pos: start, facing: startDir, cost: 0, prev: nil))
     while !queue.isEmpty {
         guard let current = queue.popMin() else {
-            return -1
+            return nil
         }
-        print(current.pos)
 
+        if current.cost > highscore {
+            break
+        }
         if current.pos == end {
-            return current.cost
+            highscore = current.cost
+            paths.append(current)
         }
 
-        if !visited.contains(where: { $0.pos == current.pos && $0.facing == current.facing }) {
+        if visited.contains(where: { $0.pos == current.pos && $0.facing == current.facing }) {
+            if  let vcost = visited.first(where: { $0.pos == current.pos && $0.facing == current.facing })?.cost {
+                if vcost < current.cost {
+                    continue
+                }
+            } else {
+                fatalError("what")
+            }
+        } else {
             visited.append(current)
             let fwdPos = current.next()
-            if !(map[fwdPos.x][fwdPos.y] == "#") {
+            // print("fwd: \(fwdPos)")
+            // if (!fwdPos.isOutOfBounds(map: map)) { print(map[fwdPos.x][fwdPos.y]) }
+            if (!fwdPos.isOutOfBounds(map: map) && map[fwdPos.x][fwdPos.y] != "#") {
                 queue.insert(State(pos: fwdPos, facing: current.facing, cost: current.cost + 1, prev: current))
             }
-            queue.insert(State(pos: fwdPos, facing: current.facing.turnRight(), cost: current.cost + 1000, prev: current))
-            queue.insert(State(pos: fwdPos, facing: current.facing.turnLeft(), cost: current.cost + 1000, prev: current))
+
+            let leftPos = current.pos.next(dir: current.facing.turnLeft())
+            // print("left: \(leftPos)")
+            // if (!fwdPos.isOutOfBounds(map: map)) { print(map[fwdPos.x][fwdPos.y]) }
+            if (!leftPos.isOutOfBounds(map: map) && map[leftPos.x][leftPos.y] != "#") {
+                queue.insert(State(pos: leftPos, facing: current.facing.turnLeft(), cost: current.cost + 1001, prev: current))
+            }
+
+            let rightPos = current.pos.next(dir: current.facing.turnRight())
+            // print("right: \(rightPos)")
+            if (!rightPos.isOutOfBounds(map: map) && map[rightPos.x][rightPos.y] != "#") {
+                queue.insert(State(pos: rightPos, facing: current.facing.turnRight(), cost: current.cost + 1001, prev: current))
+            }
         }
     }
-    fatalError("Couldn't find a path to the end")
+    return paths
 }
 
 func findStartingPosition(map: [[Character]]) -> Position? {
@@ -184,7 +221,7 @@ func findEndingPosition(map: [[Character]]) -> Position? {
 class Main {
     static func main() {
         let inputURL = Bundle.module.url(
-          forResource: "test1",
+          forResource: "test2",
           withExtension: "txt",
           subdirectory: "Day16")
 
@@ -195,6 +232,9 @@ class Main {
         }
 
         let chars = readChars(input: inputData)
+        // for line in chars {
+        //     print(String(line))
+        // }
 
         guard let start = findStartingPosition(map: chars) else {
             print("couldn't find starting position")
@@ -206,8 +246,37 @@ class Main {
             exit(1)
         }
 
-        let score = deerScore(map: chars, start: start, startDir: Direction.right, end: end)
+        guard let paths = deerScore(map: chars, start: start, startDir: Direction.right, end: end) else {
+            print("could not find path")
+            exit(1)
+        }
 
-        print(score)
+        print("score: \(paths[0].cost)")
+
+        var points: Set<Position> = []
+        for path in paths {
+            var curr = path
+            while let prev = curr.prev {
+                points.insert(curr.pos)
+                curr = prev
+            }
+        }
+
+        var finalMap = chars
+        for x in 0..<chars.count {
+            for y in 0..<chars[x].count {
+                if points.contains(Position(x: x, y: y)) {
+                    finalMap[x][y] = "O"
+                } else {
+                    finalMap[x][y] = chars[x][y]
+                }
+            }
+        }
+
+        for line in finalMap {
+            print(String(line))
+        }
+
+        print("points: \(points.count)")
     }
 }

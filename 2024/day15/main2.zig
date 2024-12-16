@@ -163,7 +163,7 @@ const Map = struct {
 
             // add this box to the seen list
             if (self.isBoxRight(current)) {
-                try seen.*.put(self.boxOtherSide(current), {});
+                try seen.*.put(Vec2{ current[0], current[1] - 1 }, {});
             } else {
                 try seen.*.put(current, {});
             }

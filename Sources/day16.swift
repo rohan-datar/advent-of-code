@@ -139,11 +139,9 @@ extension State: Comparable {
     }
 }
 
-func deerScore(map: [[Character]], start: Position, startDir: Direction, end: Position) -> [State]? {
+func deerScore(map: [[Character]], start: Position, startDir: Direction, end: Position) -> Int? {
     var queue: Heap<State> = []
     var visited: [State] = []
-    var paths: [State] = []
-    var bestScore = Int.max
 
     queue.insert(State(pos: start, facing: startDir, cost: 0, prev: nil))
     while !queue.isEmpty {
@@ -151,27 +149,67 @@ func deerScore(map: [[Character]], start: Position, startDir: Direction, end: Po
             return nil
         }
 
-        // if current.pos.y == 1 {
-        // print("pos: \(current.pos), facing: \(current.facing)")
-        // }
         if current.pos == end {
-            if current.cost <= bestScore {
-                bestScore = current.cost
-                paths.append(current)
-            }
+            return current.cost
         }
 
+        if visited.contains(where: { $0.pos == current.pos && $0.cost <= current.cost }) {
+            continue
+        }
         if !visited.contains(where: { $0.pos == current.pos && $0.facing == current.facing }) {
             visited.append(current)
             let fwdPos = current.next()
             if (map[fwdPos.x][fwdPos.y] != "#") {
                 queue.insert(State(pos: fwdPos, facing: current.facing, cost: current.cost + 1, prev: current))
             }
-            queue.insert(State(pos: current.pos, facing: current.facing.turnLeft(), cost: current.cost + 1000, prev: current))
-            queue.insert(State(pos: current.pos, facing: current.facing.turnRight(), cost: current.cost + 1000, prev: current))
+            let leftPos = current.pos.next(dir: current.facing.turnLeft())
+            if (map[leftPos.x][leftPos.y] != "#") {
+                queue.insert(State(pos: leftPos, facing: current.facing.turnLeft(), cost: current.cost + 1001, prev: current))
+            }
+            let rightPos = current.pos.next(dir: current.facing.turnRight())
+            if (map[rightPos.x][rightPos.y] != "#") {
+                queue.insert(State(pos: rightPos, facing: current.facing.turnRight(), cost: current.cost + 1001, prev: current))
+            }
         }
     }
-    return paths
+    return nil
+}
+
+func findBestSeats(map: [[Character]], start: Position, end: Position, best: Int) -> Int {
+    var points: Set<Position> = []
+    var nodes: [(Position, Direction)] = [(start, Direction.right)]
+    while !nodes.isEmpty {
+        // print(nodes)
+        guard let (currentPos, currentDir) = nodes.popLast() else {
+            print("something went wrong")
+            exit(1)
+        }
+        guard let startDist = deerScore(map: map, start: start, startDir: Direction.right, end: currentPos) else {
+            continue
+        }
+        guard let endDist = deerScore(map: map, start: currentPos, startDir: currentDir, end: end) else {
+            continue
+        }
+        if (startDist + endDist) == best {
+            points.insert(currentPos)
+        } else {
+            continue
+        }
+
+        let fwdPos = currentPos.next(dir: currentDir)
+        if (map[fwdPos.x][fwdPos.y] != "#") {
+            nodes.append((fwdPos, currentDir))
+        }
+        let leftPos = currentPos.next(dir: currentDir.turnLeft())
+        if (map[leftPos.x][leftPos.y] != "#") {
+            nodes.append((leftPos, currentDir.turnLeft()))
+        }
+        let rightPos = currentPos.next(dir: currentDir.turnRight())
+        if (map[rightPos.x][rightPos.y] != "#") {
+            nodes.append((rightPos, currentDir.turnRight()))
+        }
+    }
+    return points.count
 }
 
 func findStartingPosition(map: [[Character]]) -> Position? {
@@ -221,6 +259,7 @@ func printPath(map: [[Character]], path: State) {
         }
 }
 
+
 @main
 class Main {
     static func main() {
@@ -250,49 +289,15 @@ class Main {
             exit(1)
         }
 
-        guard let paths = deerScore(map: chars, start: start, startDir: Direction.right, end: end) else {
+        guard let score = deerScore(map: chars, start: start, startDir: Direction.right, end: end) else {
             print("could not find path")
             exit(1)
         }
 
-        var bestScore = Int.max
-        for path in paths {
-            if path.cost <= bestScore {
-                bestScore = path.cost
-            }
-        }
+        print("score: \(score)")
 
-        print("score: \(bestScore)")
+        let numSeats = findBestSeats(map: chars, start: start, end: end, best: score)
+        print("seats: \(numSeats)")
 
-        var points: Set<Position> = []
-        for path in paths {
-            // printPath(map: chars, path: path)
-            var curr = path
-            if (path.cost != bestScore) {
-                continue
-            }
-            while let prev = curr.prev {
-                points.insert(curr.pos)
-                guard let pathsToPoint = deerScore(map: chars, start: start, startDir: Direction.right, end: curr.pos) else {
-                    print("couldn't find any paths to point")
-                    exit(1)
-                }
-
-                for pointPath in pathsToPoint {
-                    if pointPath.cost == curr.cost {
-                        var pcurr = pointPath
-                        while let pprev = pcurr.prev {
-                            points.insert(pcurr.pos)
-                            pcurr = pprev
-                        }
-                    }
-                }
-                print("current: \(curr.pos)")
-                curr = prev
-            }
-        }
-
-
-        print("points: \(points.count)")
     }
 }

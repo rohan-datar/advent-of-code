@@ -102,6 +102,12 @@ const Computer = struct {
 
         return self.output.items;
     }
+
+    fn reset(self: *Computer, a: u64) void {
+        self.regA = a;
+        self.pc = 0;
+        self.output.clearAndFree();
+    }
 };
 
 fn parseReg(line: []const u8) !u64 {
@@ -126,6 +132,25 @@ fn parseProgram(line: []const u8, allocator: Allocator) ![]u3 {
     }
     return ins.items;
 }
+
+fn findA(computer: *Computer, program: []u3) !u64 {
+    var a: u64 = 0;
+    var i = program.len - 1;
+    while (i >= 0) {
+        a <<= 3;
+        computer.reset(a);
+        var out = try computer.run();
+        while (!std.mem.eql(u3, out, program[i..])) {
+            a += 1;
+            computer.reset(a);
+            out = try computer.run();
+        }
+        if (i == 0) break;
+        i -= 1;
+    }
+    return a;
+}
+
 pub fn main() !void {
     var gpa: std.heap.GeneralPurposeAllocator(.{}) = .{};
     const alloc = gpa.allocator();
@@ -148,18 +173,6 @@ pub fn main() !void {
     const out = try computer.run();
     print("part 1: {d}\n", .{out});
 
-    var newA: u64 = 0;
-    while (true) {
-        print("{d}\n", .{newA});
-        computer.regA = newA;
-        computer.pc = 0;
-        const newOut = try computer.run();
-        print("ops: {d}\n", .{ops});
-        print("out: {d}\n", .{newOut});
-        if (std.mem.eql(u3, ops, newOut)) {
-            print("part 2: {d}\n", .{newA});
-            break;
-        }
-        newA += 1;
-    }
+    const quineA = try findA(&computer, ops);
+    print("part 2: {d}\n", .{quineA});
 }

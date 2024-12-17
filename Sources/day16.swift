@@ -179,10 +179,13 @@ func findBestSeats(map: [[Character]], start: Position, end: Position, best: Int
     var points: Set<Position> = []
     var nodes: [(Position, Direction)] = [(start, Direction.right)]
     while !nodes.isEmpty {
-        // print(nodes)
+        print(nodes)
         guard let (currentPos, currentDir) = nodes.popLast() else {
             print("something went wrong")
             exit(1)
+        }
+        if points.contains(currentPos) {
+            continue
         }
         guard let startDist = deerScore(map: map, start: start, startDir: Direction.right, end: currentPos) else {
             continue

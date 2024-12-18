@@ -269,7 +269,7 @@ class Main {
         let inputURL = Bundle.module.url(
           forResource: "input",
           withExtension: "txt",
-          subdirectory: "Day16")
+          subdirectory: "Data")
 
         guard let inputURL,
           let inputData = try? String(contentsOf: inputURL, encoding: .utf8)

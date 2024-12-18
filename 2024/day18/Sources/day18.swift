@@ -185,6 +185,14 @@ func createMap(corrupted: [Position]) -> [[Character]] {
     return map
 }
 
+func buildMap(lines: [String], bytes: Int) -> [[Character]] {
+    var corrupted: [Position] = []
+    for lineNum in 0..<bytes {
+        let pos = readCoords(coordLine: lines[lineNum])
+        corrupted.append(pos)
+    }
+    return createMap(corrupted: corrupted)
+}
 
 
 let dimX = 70
@@ -205,13 +213,8 @@ class Main {
         }
 
         let lines = readLines(input: inputData)
-        var corrupted: [Position] = []
-        for lineNum in 0..<1024 {
-            let pos = readCoords(coordLine: lines[lineNum])
-            corrupted.append(pos)
-        }
 
-        let map = createMap(corrupted: corrupted)
+        var map = buildMap(lines: lines, bytes: 1024)
 
         for line in map {
             print(String(line))
@@ -223,6 +226,24 @@ class Main {
 
         print("score: \(score)")
 
+        var i = 1024
+        var j = lines.count
+        while i != j {
+            print("i: \(i), j: \(j)")
+            let k = (j - i) / 2
+            print("k: \(k)")
+            if k == 0 { break }
+            map = buildMap(lines: lines, bytes: i+k)
+            if let _ = dijkstra(map: map, start: Position(x: 0, y: 0), end: Position(x: dimX, y: dimY)) {
+                i += k
+                continue
+            } else {
+                j = i + k
+                continue
+            }
+        }
 
+        print(lines[i])
+        print(lines[j])
     }
 }

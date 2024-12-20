@@ -185,6 +185,44 @@ func dijkstra(map: [[Character]], start: Position, end: Position) -> State? {
     return nil
 }
 
+func getDistances(map: [[Character]], start: Position, end: Position) -> Dictionary<Position, Int>? {
+    var queue: Heap<State> = []
+    var visited: Set<Position> = []
+    var dists: Dictionary<Position, Int> = [:]
+
+    queue.insert(State(pos: start, cost: 0, prev: nil))
+    while !queue.isEmpty {
+        guard let current = queue.popMin() else {
+            return nil
+        }
+
+        if current.pos == end {
+            return dists
+        }
+
+        if !visited.contains(current.pos) {
+            visited.insert(current.pos)
+            dists[current.pos] = current.cost
+            let upPos = current.pos.next(dir: Direction.up)
+            if (!upPos.isOutOfBounds(map: map) && map[upPos.x][upPos.y] != "#") {
+                queue.insert(State(pos: upPos, cost: current.cost + 1, prev: current))
+            }
+            let downPos = current.pos.next(dir: Direction.down)
+            if (!downPos.isOutOfBounds(map: map) && map[downPos.x][downPos.y] != "#") {
+                queue.insert(State(pos: downPos, cost: current.cost + 1, prev: current))
+            }
+            let leftPos = current.pos.next(dir: Direction.left)
+            if (!leftPos.isOutOfBounds(map: map) && map[leftPos.x][leftPos.y] != "#") {
+                queue.insert(State(pos: leftPos, cost: current.cost + 1, prev: current))
+            }
+            let rightPos = current.pos.next(dir: Direction.right)
+            if (!rightPos.isOutOfBounds(map: map) && map[rightPos.x][rightPos.y] != "#") {
+                queue.insert(State(pos: rightPos, cost: current.cost + 1, prev: current))
+            }
+        }
+    }
+    return nil
+}
 
 
 func validPositionsWithin(map: [[Character]], start: Position, dist: Int) -> [Position] {
@@ -213,22 +251,14 @@ func validPositionsWithin(map: [[Character]], start: Position, dist: Int) -> [Po
 }
 
 
-func findCheats(map: [[Character]], bestPath: Dictionary<Position, Int>, cheatDistance: Int) -> Int {
+func findCheats(map: [[Character]], bestPath: Dictionary<Position, Int>, back: Dictionary<Position, Int>, bestTime: Int, cheatDistance: Int) -> Int {
     var cheats = 0
-    var i = 0
     for (loc, cost) in bestPath {
-        print(i)
-        i += 1
-        let reachable = validPositionsWithin(map: map, start: loc, dist: cheatDistance)
-        // print(reachable)
-        for pos in reachable {
-            if let pathPos = bestPath[pos] {
-                // print("loc: \(cost)")
-                // print("pos: \(pathPos)")
-                let distWithCheat = loc.distance(end: pos)
-                let distWithoutCheat = cost - pathPos
-                if (distWithoutCheat - distWithCheat) >= 100 {
-                    // print("with cheat: \(distWithCheat), without cheat: \(distWithoutCheat)")
+        for (locBack, costBack) in back {
+            let direct = loc.distance(end: locBack)
+            if direct <= cheatDistance {
+                let cheatTime = cost + direct + costBack
+                if (bestTime - cheatTime) >= 100 {
                     cheats += 1
                 }
             }
@@ -295,19 +325,21 @@ class Main {
             print("couldn't find path")
             exit(1)
         }
-        print(shortestPath.cost)
 
-        var path: Dictionary<Position, Int> = [:]
-        var loc = shortestPath
-        while let prev = loc.prev {
-            path[loc.pos] = loc.cost
-            loc = prev
+        guard let path: Dictionary<Position, Int> = getDistances(map: chars, start: start, end: end) else {
+            print("couldn't get dists")
+            exit(1)
         }
 
-        let part1 = findCheats(map: chars, bestPath: path, cheatDistance: 2)
+        guard let pathBack: Dictionary<Position, Int> = getDistances(map: chars, start: end, end: start) else {
+            print("couldn't get dists")
+            exit(1)
+        }
+
+        let part1 = findCheats(map: chars, bestPath: path, back: pathBack, bestTime: shortestPath.cost, cheatDistance: 2)
         print("p1: \(part1)")
 
-        let part2 = findCheats(map: chars, bestPath: path, cheatDistance: 20)
+        let part2 = findCheats(map: chars, bestPath: path, back: pathBack, bestTime: shortestPath.cost, cheatDistance: 20)
         print("p1: \(part2)")
 
     }

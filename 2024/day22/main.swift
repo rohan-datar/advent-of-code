@@ -29,21 +29,6 @@ guard let lines = readLines(fromFilePath: "input") else {
     exit(1)
 }
 
-// struct Seq: Hashable {
-//     var seq: (Int, Int, Int, Int)
-
-//     init(seq: (Int, Int, Int, Int)) {
-//         self.seq = seq
-//     }
-//     static func == (lhs: Seq, rhs: Seq) -> Bool {
-//         return lhs.seq == rhs.seq
-//     }
-
-//     func hash(into hasher: inout Hasher) {
-//         hasher.combine(seq)
-//     }
-// }
-
 var sum = 0
 var seqValues: Dictionary<SIMD4<Int>, Int> = [:]
 for line in lines {

@@ -147,7 +147,12 @@ fn optimizePaths(padPaths: HashMap([][]u8), dirPaths: HashMap([][]u8), allocator
     var bestPaths = HashMap([]u8).init(allocator);
     const keys = padPaths.keys();
     for (keys) |key| {
+        // print("key: {s}\n", .{key});
         const paths = padPaths.get(key).?;
+        if (paths.len == 1) {
+            try bestPaths.put(key, paths[0]);
+            continue;
+        }
         var bestPathScore: usize = std.math.maxInt(usize);
         for (paths) |path| {
             var i: usize = 0;
@@ -159,6 +164,7 @@ fn optimizePaths(padPaths: HashMap([][]u8), dirPaths: HashMap([][]u8), allocator
                 const dirP = dirPaths.get(move).?;
                 if (dirP[0].len <= bestPathScore) {
                     bestPathScore = dirP[0].len;
+                    // print(" path: {s}\n", .{path});
                     try bestPaths.put(key, path);
                 }
             }
@@ -192,7 +198,7 @@ fn pathLength(seq: []const u8, numPadPaths: HashMap([]u8), dirPadPaths: HashMap(
             const next = currentPath.items[i + 1];
             // print("currentPath: {s}\n", .{currentPath.items});
             // print("{d}\n", .{currentPath.items.len});
-            print("i: {d}, current: {c}, next: {c}\n", .{ i, current, next });
+            // print("i: {d}, current: {c}, next: {c}\n", .{ i, current, next });
             const moves = [_]u8{ current, next };
             const move = moves[0..];
             // print("move: {s}\n ", .{move});

@@ -67,26 +67,46 @@ func addConnection(line: String, network: inout Dictionary<String, [String]>, tr
     }
 }
 
-func buildLan(subnet: [String], network: Dictionary<String, [String]>) -> [String] {
-    var newSubnet = subnet
-    let node = subnet[0]
-    outer: for conn in network[node]! {
-        for check in subnet {
-            if !(network[check]!.contains(conn)) {
-                newSubnet.append(conn)
-                break outer
-            }
-        }
+// func buildLan(subnet: [String], network: Dictionary<String, [String]>) -> [String] {
+//     var newSubnet = subnet
+//     let node = subnet[0]
+//     outer: for conn in network[node]! {
+//         for check in subnet {
+//             if !(network[check]!.contains(conn)) {
+//                 newSubnet.append(conn)
+//                 break outer
+//             }
+//         }
+//     }
+
+//     if newSubnet.count > subnet.count {
+//         print(newSubnet)
+//         return buildLan(subnet: newSubnet, network: network)
+//     }
+//     return newSubnet
+// }
+
+// Bron-Kerbosch Algorithm for finding the maximal clique
+func bronKerbosch(currClique: Set<String>, potentialNodes: inout Set<String>, notInClique: inout Set<String>, graph: Dictionary<String, [String]>) -> Set<Set<String>> {
+    var cliques: Set<Set<String>> = []
+    if potentialNodes.isEmpty && notInClique.isEmpty {
+        cliques.insert(currClique)
     }
 
-    if newSubnet.count > subnet.count {
-        print(newSubnet)
-        return buildLan(subnet: newSubnet, network: network)
+    while (!potentialNodes.isEmpty) {
+        let v = potentialNodes.removeFirst()
+        var newClique = currClique
+        newClique.insert(v)
+        let conns = graph[v]!
+        var newPot = potentialNodes.filter( { conns.contains($0) } )
+        var newNot = notInClique.filter( { conns.contains($0) } )
+        cliques = cliques.union(bronKerbosch(currClique: newClique, potentialNodes: &newPot, notInClique: &newNot, graph: graph))
+        notInClique.insert(v)
     }
-    return newSubnet
+    return cliques
 }
 
-guard let lines = readLines(fromFilePath: "test") else {
+guard let lines = readLines(fromFilePath: "input") else {
     print("couldn't read file")
     exit(1)
 }
@@ -108,22 +128,16 @@ for triple in triples {
 print(sum)
 
 // part 2
-var seen: Set<String> = []
-var largest: [String] = []
-for triple in triples {
-    if seen.contains(triple.a) {
-        continue
-    }
-
-    let lan = buildLan(subnet: [triple.a, triple.b, triple.c], network: network)
-    for host in lan {
-        seen.insert(host)
-    }
-
-    if (largest.isEmpty) || (largest.count < lan.count) {
-        largest = lan
+var vertices = Set(network.keys)
+var x: Set<String> = []
+let cliques = bronKerbosch(currClique: Set<String>(), potentialNodes: &vertices, notInClique: &x, graph: network)
+var maxLength = 0
+var max: Set<String> = []
+for clique in cliques {
+    if  clique.count > maxLength {
+        maxLength = clique.count
+        max = clique
     }
 }
-largest.sort()
-print(largest)
-print(largest.joined(separator: ","))
+let largestNet = max.sorted().joined(separator: ",")
+print(largestNet)

@@ -132,8 +132,7 @@ fn getPossiblePaths(keypad: HashMap(Vec2), allocator: Allocator) !HashMap([][]u8
             const possiblePaths = try calculatePaths(keypad, button, b, allocator);
             var strippedPaths = ArrayList([]u8).init(allocator);
             for (possiblePaths) |p| {
-                const finalPath = try concat(allocator, u8, &[_][]const u8{ p.path, "A" });
-                try strippedPaths.append(finalPath);
+                try strippedPaths.append(p.path);
             }
             const seq = try concat(allocator, u8, &[_][]const u8{ button, b });
             try paths.put(seq, strippedPaths.items);
@@ -143,73 +142,137 @@ fn getPossiblePaths(keypad: HashMap(Vec2), allocator: Allocator) !HashMap([][]u8
     return paths;
 }
 
-fn optimizePaths(padPaths: HashMap([][]u8), dirPaths: HashMap([][]u8), allocator: Allocator) !HashMap([]u8) {
-    var bestPaths = HashMap([]u8).init(allocator);
-    const keys = padPaths.keys();
-    for (keys) |key| {
-        // print("key: {s}\n", .{key});
-        const paths = padPaths.get(key).?;
-        if (paths.len == 1) {
-            try bestPaths.put(key, paths[0]);
-            continue;
-        }
-        var bestPathScore: usize = std.math.maxInt(usize);
-        for (paths) |path| {
-            var i: usize = 0;
-            while (i < path.len - 1) : (i += 1) {
-                const current = path[i];
-                const next = path[i + 1];
-                const moves = [_]u8{ current, next };
-                const move = moves[0..];
-                const dirP = dirPaths.get(move).?;
-                if (dirP[0].len <= bestPathScore) {
-                    bestPathScore = dirP[0].len;
-                    // print(" path: {s}\n", .{path});
-                    try bestPaths.put(key, path);
-                }
+// fn optimizePaths(padPaths: HashMap([][]u8), dirPaths: HashMap([][]u8), allocator: Allocator) !HashMap([]u8) {
+//     var bestPaths = HashMap([]u8).init(allocator);
+//     const keys = padPaths.keys();
+//     for (keys) |key| {
+//         // print("key: {s}\n", .{key});
+//         const paths = padPaths.get(key).?;
+//         if (paths.len == 1) {
+//             try bestPaths.put(key, paths[0]);
+//             continue;
+//         }
+//         var bestPathScore: usize = std.math.maxInt(usize);
+//         for (paths) |path| {
+//             var i: usize = 0;
+//             while (i < path.len - 1) : (i += 1) {
+//                 const current = path[i];
+//                 const next = path[i + 1];
+//                 const moves = [_]u8{ current, next };
+//                 const move = moves[0..];
+//                 const dirP = dirPaths.get(move).?;
+//                 if (dirP[0].len <= bestPathScore) {
+//                     bestPathScore = dirP[0].len;
+//                     // print(" path: {s}\n", .{path});
+//                     try bestPaths.put(key, path);
+//                 }
+//             }
+//         }
+//     }
+//     return bestPaths;
+// }
+
+fn keySeq(keys: []const u8, idx: usize, prevKey: []const u8, currPath: []u8, keymap: HashMap([][]u8), result: *ArrayList([]u8), allocator: Allocator) !void {
+    if (idx == keys.len) {
+        try result.append(currPath);
+        return;
+    }
+
+    const currKey = keys[idx .. idx + 1];
+    const move = try concat(allocator, u8, &[_][]const u8{ prevKey, currKey });
+    const paths = keymap.get(move).?;
+    print("paths: {s}\n", .{paths});
+    for (paths) |path| {
+        const newPath = try concat(allocator, u8, &[_][]const u8{ currPath, path, "A" });
+        try keySeq(keys, idx + 1, currKey, newPath, keymap, result, allocator);
+    }
+}
+
+const CacheKey = struct {
+    keys: []const u8,
+    depth: u8,
+};
+
+const CacheKeyContext = struct {
+    pub fn hash(_: CacheKeyContext, key: CacheKey) u32 {
+        var h = std.hash.Fnv1a_32.init();
+        h.update(key.keys);
+        h.update(&[_]u8{key.depth});
+        return h.final();
+    }
+
+    pub fn eql(_: CacheKeyContext, a: CacheKey, b: CacheKey, _: usize) bool {
+        return std.mem.eql(u8, a.keys, b.keys) and (a.depth == b.depth);
+    }
+};
+const Cache = std.ArrayHashMap(CacheKey, u64, CacheKeyContext, true);
+
+fn shortestSeq(keys: []const u8, depth: u8, cache: *Cache, dirPaths: HashMap([][]u8), allocator: Allocator) !u64 {
+    if (depth == 0) {
+        return keys.len;
+    }
+
+    const checkCache = CacheKey{ .keys = keys, .depth = depth };
+    if (cache.get(checkCache)) |val| {
+        return val;
+    }
+    var keyIt = std.mem.splitSequence(u8, keys, "A");
+    var totalVal: u64 = 0;
+    while (keyIt.next()) |sub| {
+        const subKey = try concat(allocator, u8, &[_][]const u8{ sub, "A" });
+        var res = ArrayList([]u8).init(allocator);
+        try keySeq(subKey, 0, "A", &[_]u8{}, dirPaths, &res, allocator);
+        var min: u64 = std.math.maxInt(u64);
+        for (res.items) |seq| {
+            const seqLen = try shortestSeq(seq, depth - 1, cache, dirPaths, allocator);
+            if (seqLen < min) {
+                min = seqLen;
             }
         }
+        totalVal += min;
     }
-    return bestPaths;
+
+    try cache.put(CacheKey{ .keys = keys, .depth = depth }, totalVal);
+    return totalVal;
 }
 
-fn pathLength(seq: []const u8, numPadPaths: HashMap([]u8), dirPadPaths: HashMap([]u8), numBots: u8, allocator: Allocator) !usize {
-    const digSeq = try concat(allocator, u8, &[_][]const u8{ "A", seq });
-    var numPadPath = ArrayList(u8).init(allocator);
-    var i: usize = 0;
-    while (i < digSeq.len - 1) : (i += 1) {
-        const current = digSeq[i];
-        const next = digSeq[i + 1];
-        const moves = [_]u8{ current, next };
-        const move = moves[0..];
-        const charPath = numPadPaths.get(move).?;
-        try numPadPath.appendSlice(charPath);
-    }
+// fn pathLength(seq: []const u8, numPadPaths: HashMap([]u8), dirPadPaths: HashMap([]u8), numBots: u8, allocator: Allocator) !usize {
+//     const digSeq = try concat(allocator, u8, &[_][]const u8{ "A", seq });
+//     var numPadPath = ArrayList(u8).init(allocator);
+//     var i: usize = 0;
+//     while (i < digSeq.len - 1) : (i += 1) {
+//         const current = digSeq[i];
+//         const next = digSeq[i + 1];
+//         const moves = [_]u8{ current, next };
+//         const move = moves[0..];
+//         const charPath = numPadPaths.get(move).?;
+//         try numPadPath.appendSlice(charPath);
+//     }
 
-    var dirPath = numPadPath;
-    for (0..numBots - 1) |_| {
-        print("{s}\n", .{dirPath.items});
-        var currentPath = try dirPath.clone();
-        dirPath.clearAndFree();
-        try currentPath.insert(0, 'A');
-        i = 0;
-        while (i < currentPath.items.len - 1) : (i += 1) {
-            const current = currentPath.items[i];
-            const next = currentPath.items[i + 1];
-            // print("currentPath: {s}\n", .{currentPath.items});
-            // print("{d}\n", .{currentPath.items.len});
-            // print("i: {d}, current: {c}, next: {c}\n", .{ i, current, next });
-            const moves = [_]u8{ current, next };
-            const move = moves[0..];
-            // print("move: {s}\n ", .{move});
-            const charPath = dirPadPaths.get(move).?;
-            try dirPath.appendSlice(charPath);
-        }
-    }
+//     var dirPath = numPadPath;
+//     for (0..numBots - 1) |_| {
+//         // print("{s}\n", .{dirPath.items});
+//         var currentPath = try dirPath.clone();
+//         dirPath.clearAndFree();
+//         try currentPath.insert(0, 'A');
+//         i = 0;
+//         while (i < currentPath.items.len - 1) : (i += 1) {
+//             const current = currentPath.items[i];
+//             const next = currentPath.items[i + 1];
+//             // print("currentPath: {s}\n", .{currentPath.items});
+//             // print("{d}\n", .{currentPath.items.len});
+//             // print("i: {d}, current: {c}, next: {c}\n", .{ i, current, next });
+//             const moves = [_]u8{ current, next };
+//             const move = moves[0..];
+//             // print("move: {s}\n ", .{move});
+//             const charPath = dirPadPaths.get(move).?;
+//             try dirPath.appendSlice(charPath);
+//         }
+//     }
 
-    print("{s}: {s}\n", .{ seq, dirPath.items });
-    return dirPath.items.len;
-}
+//     // print("{s}: {s}\n", .{ seq, dirPath.items });
+//     return dirPath.items.len;
+// }
 
 pub fn main() !void {
     var input_file = try std.fs.cwd().openFile("test", .{});
@@ -239,13 +302,19 @@ pub fn main() !void {
     const possibleDirPaths = try getPossiblePaths(dirkeys, allocator);
     // printPotentialMap(possibleNumPaths);
     // printPotentialMap(possibleDirPaths);
-    const numPaths = try optimizePaths(possibleNumPaths, possibleDirPaths, allocator);
-    const dirPaths = try optimizePaths(possibleDirPaths, possibleDirPaths, allocator);
-    // printMap(numPaths);
-    // printMap(dirPaths);
 
+    var cache = Cache.init(allocator);
     while (try in_stream.readUntilDelimiterOrEof(&buf, '\n')) |line| {
-        const plen = try pathLength(line, numPaths, dirPaths, 3, allocator);
-        print("{d}\n", .{plen - 2});
+        var seqs = ArrayList([]u8).init(allocator);
+        try keySeq(line, 0, "A", &[_]u8{}, possibleNumPaths, &seqs, allocator);
+        var min: u64 = std.math.maxInt(u64);
+
+        for (seqs.items) |seq| {
+            const seqLen = try shortestSeq(seq, 3, &cache, possibleDirPaths, allocator);
+            if (seqLen < min) {
+                min = seqLen;
+            }
+        }
+        print("{d}\n", .{min});
     }
 }

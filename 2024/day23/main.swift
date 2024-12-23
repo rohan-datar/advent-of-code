@@ -67,7 +67,26 @@ func addConnection(line: String, network: inout Dictionary<String, [String]>, tr
     }
 }
 
-guard let lines = readLines(fromFilePath: "input") else {
+func buildLan(subnet: [String], network: Dictionary<String, [String]>) -> [String] {
+    var newSubnet = subnet
+    let node = subnet[0]
+    outer: for conn in network[node]! {
+        for check in subnet {
+            if !(network[check]!.contains(conn)) {
+                newSubnet.append(conn)
+                break outer
+            }
+        }
+    }
+
+    if newSubnet.count > subnet.count {
+        print(newSubnet)
+        return buildLan(subnet: newSubnet, network: network)
+    }
+    return newSubnet
+}
+
+guard let lines = readLines(fromFilePath: "test") else {
     print("couldn't read file")
     exit(1)
 }
@@ -78,11 +97,33 @@ for line in lines {
     addConnection(line: line, network: &network, triples: &triples)
 }
 
+
+// part 1
 var sum = 0
 for triple in triples {
     if (triple.a.starts(with: "t") || triple.b.starts(with: "t") || triple.c.starts(with: "t")) {
         sum += 1
     }
 }
-
 print(sum)
+
+// part 2
+var seen: Set<String> = []
+var largest: [String] = []
+for triple in triples {
+    if seen.contains(triple.a) {
+        continue
+    }
+
+    let lan = buildLan(subnet: [triple.a, triple.b, triple.c], network: network)
+    for host in lan {
+        seen.insert(host)
+    }
+
+    if (largest.isEmpty) || (largest.count < lan.count) {
+        largest = lan
+    }
+}
+largest.sort()
+print(largest)
+print(largest.joined(separator: ","))

@@ -205,9 +205,9 @@ const CacheKeyContext = struct {
         return std.mem.eql(u8, a.keys, b.keys) and (a.depth == b.depth);
     }
 };
-const Cache = std.ArrayHashMap(CacheKey, u64, CacheKeyContext, true);
+const CacheMap = std.ArrayHashMap(CacheKey, u64, CacheKeyContext, true);
 
-fn shortestSeq(keys: []const u8, depth: u8, cache: *Cache, dirPaths: HashMap([][]u8), allocator: Allocator) !u64 {
+fn shortestSeq(keys: []const u8, depth: u8, cache: *CacheMap, dirPaths: HashMap([][]u8), allocator: Allocator) !u64 {
     if (depth == 0) {
         return keys.len;
     }
@@ -303,7 +303,7 @@ pub fn main() !void {
     // printPotentialMap(possibleNumPaths);
     // printPotentialMap(possibleDirPaths);
 
-    var cache = Cache.init(allocator);
+    var cache = CacheMap.init(allocator);
     while (try in_stream.readUntilDelimiterOrEof(&buf, '\n')) |line| {
         var seqs = ArrayList([]u8).init(allocator);
         try keySeq(line, 0, "A", &[_]u8{}, possibleNumPaths, &seqs, allocator);

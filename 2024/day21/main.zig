@@ -181,7 +181,7 @@ fn keySeq(keys: []const u8, idx: usize, prevKey: []const u8, currPath: []u8, key
     const currKey = keys[idx .. idx + 1];
     const move = try concat(allocator, u8, &[_][]const u8{ prevKey, currKey });
     const paths = keymap.get(move).?;
-    print("paths: {s}\n", .{paths});
+    // print("paths: {s}\n", .{paths});
     for (paths) |path| {
         const newPath = try concat(allocator, u8, &[_][]const u8{ currPath, path, "A" });
         try keySeq(keys, idx + 1, currKey, newPath, keymap, result, allocator);
@@ -310,7 +310,7 @@ pub fn main() !void {
         var min: u64 = std.math.maxInt(u64);
 
         for (seqs.items) |seq| {
-            const seqLen = try shortestSeq(seq, 3, &cache, possibleDirPaths, allocator);
+            const seqLen = try shortestSeq(seq, 2, &cache, possibleDirPaths, allocator);
             if (seqLen < min) {
                 min = seqLen;
             }

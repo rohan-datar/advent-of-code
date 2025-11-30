@@ -123,21 +123,22 @@ pub fn main() !void {
         try initWire(line, &wires);
     }
 
-    var gates = ArrayList(Gate).init(allocator);
+    var gates = std.ArrayList(Gate).init(allocator);
+    gates.clearAndFree();
     print("*********CONNECTIONS GOING INTO LIST*********\n\n", .{});
     while (try in_stream.readUntilDelimiterOrEof(&buf, '\n')) |line| {
         // print("{s}\n", .{line});
         const gate = parseGate(line);
-        print("{s} {any} {s} -> {s}\n", .{ gate.input_a, gate.op, gate.input_b, gate.out });
-        try gates.append(gate);
-        // print("{s}\n", .{gate.input_a});
+        // print("{s} {any} {s} -> {s}\n", .{ gate.input_a, gate.op, gate.input_b, gate.out });
+        try gates.appendNTimes(gate, 1);
+        print("{any}\n", .{@TypeOf(gate)});
     }
 
     // print("{any}\n", .{gates.items});
     // print("{any}\n", .{gates});
 
     print("\n**************CONNECTIONS AFTER ADDING TO LIST************\n\n", .{});
-    for (gates.items) |gate| {
+    for (gates.allocatedSlice()) |gate| {
         print("{s} {any} {s} -> {s}\n", .{ gate.input_a, gate.op, gate.input_b, gate.out });
         // print("{s}\n", .{gate});
     }

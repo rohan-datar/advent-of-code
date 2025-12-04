@@ -13,3 +13,32 @@ pub fn file_chars(path: &str) -> Result<Vec<char>, std::io::Error> {
     Ok(content.chars().collect())
 }
 
+pub fn file_to_grid(path: &str) -> Result<Vec<Vec<char>>, std::io::Error> {
+    let lines = file_lines(path)?;
+    let grid = lines
+        .into_iter()
+        .map(|line| line.chars().collect())
+        .collect();
+    Ok(grid)
+}
+
+pub fn grid_surrounding(grid: &Vec<Vec<char>>, row: usize, col: usize) -> Vec<char> {
+    let mut surrounding = Vec::new();
+    let rows = grid.len() as isize;
+    let cols = grid[0].len() as isize;
+
+    for dr in -1..=1 {
+        for dc in -1..=1 {
+            if dr == 0 && dc == 0 {
+                continue;
+            }
+            let new_row = row as isize + dr;
+            let new_col = col as isize + dc;
+            if new_row >= 0 && new_row < rows && new_col >= 0 && new_col < cols {
+                surrounding.push(grid[new_row as usize][new_col as usize]);
+            }
+        }
+    }
+
+    surrounding
+}

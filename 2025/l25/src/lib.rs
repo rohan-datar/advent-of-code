@@ -42,3 +42,13 @@ pub fn grid_surrounding(grid: &Vec<Vec<char>>, row: usize, col: usize) -> Vec<ch
 
     surrounding
 }
+
+pub fn parse_range(range_str: &str) -> Option<(i64, i64)> {
+    let parts: Vec<&str> = range_str.split('-').collect();
+    if parts.len() != 2 {
+        return None;
+    }
+    let start = parts[0].parse::<i64>().ok()?;
+    let end = parts[1].parse::<i64>().ok()?;
+    Some((start, end))
+}

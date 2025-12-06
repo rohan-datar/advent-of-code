@@ -22,6 +22,21 @@ pub fn file_to_grid(path: &str) -> Result<Vec<Vec<char>>, std::io::Error> {
     Ok(grid)
 }
 
+pub fn file_words(path: &str) -> Result<Vec<String>, std::io::Error> {
+    let content = std::fs::read_to_string(path)?;
+    let words = content.split_whitespace().map(|s| s.to_string()).collect();
+    Ok(words)
+}
+
+pub fn file_words_grid(path: &str) -> Result<Vec<Vec<String>>, std::io::Error> {
+    let lines = file_lines(path)?;
+    let grid = lines
+        .into_iter()
+        .map(|line| line.split_whitespace().map(|s| s.to_string()).collect())
+        .collect();
+    Ok(grid)
+}
+
 pub fn grid_surrounding(grid: &Vec<Vec<char>>, row: usize, col: usize) -> Vec<char> {
     let mut surrounding = Vec::new();
     let rows = grid.len() as isize;

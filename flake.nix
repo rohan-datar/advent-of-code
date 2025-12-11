@@ -68,11 +68,17 @@
               # swift
               clang
               clang-tools
+              cmake
+              llvmPackages.libclang
+              llvmPackages.clang
+              cbc
             ];
 
             env = {
               # Required by rust-analyzer
               RUST_SRC_PATH = "${pkgs.rustToolchain}/lib/rustlib/src/rust/library";
+              LIBCLANG_PATH = "${pkgs.llvmPackages.libclang.lib}/lib";
+              LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib:${pkgs.cbc}/lib";
             };
           };
         }

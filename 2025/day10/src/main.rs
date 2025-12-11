@@ -1,5 +1,6 @@
+use good_lp::{Expression, Solution, SolverModel, constraint, default_solver, variable, variables};
 use std::collections::hash_map::Entry;
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 
 fn main() {
     let lines = l25::file_lines("input").unwrap();
@@ -33,7 +34,6 @@ fn min_presses_indicators(machine: &Machine) -> Option<u32> {
     let mut visited: HashMap<u32, u32> = HashMap::new();
     let mut states: VecDeque<(u32, u32)> = VecDeque::new();
 
-    // initial state is 0 with 0 presses
     visited.insert(0, 0);
     states.push_back((0, 0));
 
@@ -52,62 +52,61 @@ fn min_presses_indicators(machine: &Machine) -> Option<u32> {
     None
 }
 
-fn part2(machines: &[Machine]) -> u32 {
-    let mut total = 0;
+fn part2(machines: &[Machine]) -> u64 {
+    let mut total = 0u64;
     for machine in machines {
-        println!("checking machine {:?}", machine);
-        total += min_presses_joltages(machine).unwrap_or(0);
+        total += min_presses_joltages_ilp(machine);
     }
     total
 }
 
-fn min_presses_joltages(machine: &Machine) -> Option<u32> {
-    let target = machine.joltages.clone();
-    if target.is_empty() || target.iter().all(|&x| x == 0) {
-        return Some(0);
+fn min_presses_joltages_ilp(machine: &Machine) -> u64 {
+    let target = &machine.joltages;
+    let num_counters = target.len();
+    let num_buttons = machine.buttons_joltages.len();
+
+    if target.iter().all(|&x| x == 0) {
+        return 0;
     }
 
-    let start: Vec<u32> = vec![0; target.len()];
+    // Create variables
+    let mut vars = variables!();
 
-    if start == *target {
-        return Some(0);
-    }
+    // One integer variable per button
+    let button_vars: Vec<_> = (0..num_buttons)
+        .map(|_| vars.add(variable().integer().min(0)))
+        .collect();
 
-    let mut visited: HashSet<Vec<u32>> = HashSet::new();
-    let mut states: VecDeque<(Vec<u32>, u32)> = VecDeque::new();
+    //  minimize sum of all button presses
+    let objective: Expression = button_vars.iter().sum();
 
-    visited.insert(start.clone());
-    states.push_back((start, 0));
+    // Build the problem
+    let mut problem = vars.minimise(objective).using(default_solver);
 
-    while let Some((state, presses)) = states.pop_front() {
-        for button in &machine.buttons_joltages {
-            let mut new_state = state.clone();
-            let mut valid = true;
+    // Add constraints
+    for counter_idx in 0..num_counters {
+        let mut sum: Expression = 0.into();
 
-            for &i in button {
-                new_state[i as usize] += 1;
-                // we can't go over our target value
-                if new_state[i as usize] > target[i as usize] {
-                    valid = false;
-                    break;
-                }
-            }
-
-            if !valid {
-                continue;
-            }
-
-            if new_state == *target {
-                return Some(presses + 1);
-            }
-
-            if !visited.contains(&new_state) {
-                visited.insert(new_state.clone());
-                states.push_back((new_state, presses + 1));
+        for (btn_idx, btn) in machine.buttons_joltages.iter().enumerate() {
+            if btn.contains(&(counter_idx as u32)) {
+                sum += button_vars[btn_idx];
             }
         }
+
+        problem = problem.with(constraint!(sum == target[counter_idx] as i32));
     }
-    None
+
+    // Solve
+    match problem.solve() {
+        Ok(solution) => {
+            let total: f64 = button_vars.iter().map(|&v| solution.value(v)).sum();
+            total.round() as u64
+        }
+        Err(e) => {
+            println!("No solution found: {:?}", e);
+            u64::MAX
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -158,7 +157,6 @@ fn parse_machine(input: &str) -> Machine {
         i += 1;
     }
 
-    // find the substring between {}
     let start = input.find('{').unwrap();
     let end = input.find('}').unwrap();
 
